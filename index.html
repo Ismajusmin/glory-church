@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Glory Church - ระบบบัญชีคริสตจักร</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #1565C0;
+    --primary-light: #1976D2;
+    --primary-dark: #0D47A1;
+    --secondary: #42A5F5;
+    --accent: #E3F2FD;
+    --accent2: #BBDEFB;
+    --white: #FFFFFF;
+    --gray-50: #F8FAFF;
+    --gray-100: #EEF2FF;
+    --gray-200: #E0E7FF;
+    --gray-600: #64748B;
+    --gray-800: #1E293B;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --shadow: 0 2px 12px rgba(21,101,192,0.10);
+    --shadow-lg: 0 8px 32px rgba(21,101,192,0.16);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:'Sarabun',sans-serif; background:#F0F6FF; color:var(--gray-800); min-height:100vh; }
+  #root { min-height:100vh; display:flex; flex-direction:column; }
+
+  /* Navbar */
+  .navbar {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 60%, var(--secondary) 100%);
+    color:white; padding:0 16px;
+    display:flex; align-items:center; justify-content:space-between;
+    height:60px; position:sticky; top:0; z-index:100;
+    box-shadow: 0 2px 12px rgba(21,101,192,0.3);
+  }
+  .navbar-brand { display:flex; align-items:center; gap:10px; }
+  .navbar-logo { width:36px; height:36px; background:rgba(255,255,255,0.2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .navbar-title { font-family:'Prompt',sans-serif; font-weight:700; font-size:17px; line-height:1.2; }
+  .navbar-subtitle { font-size:11px; opacity:0.8; font-weight:400; }
+  .navbar-user { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.15); border-radius:20px; padding:6px 12px; cursor:pointer; }
+  .navbar-avatar { width:26px; height:26px; border-radius:50%; background:var(--secondary); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; }
+
+  /* Bottom Nav */
+  .bottom-nav {
+    position:fixed; bottom:0; left:0; right:0; background:white;
+    border-top:1px solid var(--accent2);
+    display:flex; height:64px; z-index:100;
+    box-shadow: 0 -4px 20px rgba(21,101,192,0.10);
+  }
+  .bottom-nav-item {
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; cursor:pointer; transition:all 0.2s; color:var(--gray-600);
+    font-size:10px; font-family:'Sarabun',sans-serif;
+    border:none; background:none; outline:none;
+  }
+  .bottom-nav-item.active { color:var(--primary); }
+  .bottom-nav-item .nav-icon { font-size:22px; transition:transform 0.2s; }
+  .bottom-nav-item.active .nav-icon { transform:translateY(-2px); }
+  .nav-dot { width:4px; height:4px; border-radius:50%; background:var(--primary); margin:0 auto; }
+
+  /* Main Content */
+  .main-content { flex:1; padding:16px; padding-bottom:80px; max-width:600px; margin:0 auto; width:100%; }
+
+  /* Cards */
+  .card { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:16px; }
+  .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .card-title { font-family:'Prompt',sans-serif; font-weight:600; font-size:16px; color:var(--gray-800); display:flex; align-items:center; gap:8px; }
+
+  /* Stats Grid */
+  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+  .stat-card {
+    background:white; border-radius:var(--radius-sm); padding:16px;
+    box-shadow:var(--shadow); position:relative; overflow:hidden;
+  }
+  .stat-card::before { content:''; position:absolute; top:0; right:0; width:60px; height:60px; border-radius:0 0 0 60px; }
+  .stat-card.income::before { background:rgba(16,185,129,0.12); }
+  .stat-card.expense::before { background:rgba(239,68,68,0.12); }
+  .stat-card.balance::before { background:rgba(21,101,192,0.12); }
+  .stat-card.transactions::before { background:rgba(245,158,11,0.12); }
+  .stat-label { font-size:12px; color:var(--gray-600); margin-bottom:6px; }
+  .stat-value { font-family:'Prompt',sans-serif; font-weight:700; font-size:20px; }
+  .stat-value.income { color:var(--success); }
+  .stat-value.expense { color:var(--danger); }
+  .stat-value.balance { color:var(--primary); }
+  .stat-value.transactions { color:var(--warning); }
+  .stat-icon { font-size:28px; position:absolute; top:12px; right:12px; opacity:0.6; }
+
+  /* Filter Bar */
+  .filter-bar { display:flex; gap:8px; margin-bottom:16px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+  .filter-bar::-webkit-scrollbar { display:none; }
+  .filter-chip {
+    flex-shrink:0; padding:7px 14px; border-radius:20px; font-size:13px;
+    border:1.5px solid var(--accent2); background:white; color:var(--gray-600);
+    cursor:pointer; transition:all 0.2s; font-family:'Sarabun',sans-serif;
+    white-space:nowrap;
+  }
+  .filter-chip.active { background:var(--primary); color:white; border-color:var(--primary); }
+
+  /* Transaction List */
+  .tx-item {
+    display:flex; align-items:center; gap:12px; padding:14px 0;
+    border-bottom:1px solid var(--gray-100);
+  }
+  .tx-item:last-child { border-bottom:none; }
+  .tx-icon { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+  .tx-icon.income { background:rgba(16,185,129,0.12); }
+  .tx-icon.expense { background:rgba(239,68,68,0.12); }
+  .tx-info { flex:1; min-width:0; }
+  .tx-name { font-size:14px; font-weight:600; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tx-meta { font-size:12px; color:var(--gray-600); }
+  .tx-badge { font-size:11px; background:var(--accent); color:var(--primary); padding:2px 8px; border-radius:10px; display:inline-block; margin-top:2px; }
+  .tx-amount { font-family:'Prompt',sans-serif; font-weight:700; font-size:15px; flex-shrink:0; }
+  .tx-amount.income { color:var(--success); }
+  .tx-amount.expense { color:var(--danger); }
+
+  /* Forms */
+  .form-group { margin-bottom:16px; }
+  .form-label { display:block; font-size:13px; font-weight:600; color:var(--gray-600); margin-bottom:6px; }
+  .form-control {
+    width:100%; padding:12px 14px; border:1.5px solid var(--accent2);
+    border-radius:var(--radius-sm); font-size:15px; font-family:'Sarabun',sans-serif;
+    outline:none; transition:border-color 0.2s; background:white;
+    -webkit-appearance:none;
+  }
+  .form-control:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(21,101,192,0.1); }
+  select.form-control { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748B' stroke-width='2' fill='none'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; padding-right:36px; }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+  /* Buttons */
+  .btn {
+    padding:13px 20px; border-radius:var(--radius-sm); font-size:15px; font-weight:600;
+    font-family:'Sarabun',sans-serif; border:none; cursor:pointer; transition:all 0.2s;
+    display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
+  }
+  .btn-primary { background:linear-gradient(135deg, var(--primary), var(--primary-light)); color:white; box-shadow:0 4px 12px rgba(21,101,192,0.35); }
+  .btn-primary:active { transform:scale(0.98); }
+  .btn-outline { background:white; color:var(--primary); border:1.5px solid var(--primary); }
+  .btn-success { background:linear-gradient(135deg, #059669, var(--success)); color:white; box-shadow:0 4px 12px rgba(16,185,129,0.3); }
+  .btn-danger { background:linear-gradient(135deg, #DC2626, var(--danger)); color:white; }
+  .btn-sm { padding:8px 16px; font-size:13px; width:auto; }
+
+  /* FAB */
+  .fab {
+    position:fixed; bottom:80px; right:20px; width:56px; height:56px;
+    border-radius:50%; background:linear-gradient(135deg, var(--primary), var(--secondary));
+    color:white; border:none; font-size:26px; cursor:pointer;
+    box-shadow:0 6px 20px rgba(21,101,192,0.45); z-index:99;
+    display:flex; align-items:center; justify-content:center;
+    transition:all 0.2s;
+  }
+  .fab:active { transform:scale(0.92); }
+
+  /* Modal */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200;
+    display:flex; align-items:flex-end; justify-content:center;
+    animation:fadeIn 0.2s;
+  }
+  .modal-sheet {
+    background:white; border-radius:24px 24px 0 0; padding:24px 20px;
+    width:100%; max-width:600px; max-height:92vh; overflow-y:auto;
+    animation:slideUp 0.3s;
+  }
+  .modal-handle { width:40px; height:4px; background:var(--gray-200); border-radius:2px; margin:0 auto 20px; }
+  .modal-title { font-family:'Prompt',sans-serif; font-weight:700; font-size:20px; margin-bottom:20px; color:var(--gray-800); }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+
+  /* Login */
+  .login-container { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; background:linear-gradient(160deg, #0D47A1 0%, #1565C0 40%, #42A5F5 100%); }
+  .login-card { background:white; border-radius:24px; padding:32px 24px; width:100%; max-width:380px; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
+  .login-logo { text-align:center; margin-bottom:28px; }
+  .login-logo-icon { width:72px; height:72px; background:linear-gradient(135deg, var(--primary), var(--secondary)); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:32px; box-shadow:0 8px 24px rgba(21,101,192,0.4); }
+  .login-title { font-family:'Prompt',sans-serif; font-weight:700; font-size:22px; color:var(--primary); }
+  .login-sub { font-size:13px; color:var(--gray-600); }
+
+  /* Chart */
+  .chart-container { position:relative; height:200px; margin-top:12px; }
+
+  /* Badge */
+  .badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+  .badge-success { background:rgba(16,185,129,0.12); color:#059669; }
+  .badge-danger { background:rgba(239,68,68,0.12); color:#DC2626; }
+  .badge-primary { background:var(--accent); color:var(--primary); }
+  .badge-warning { background:rgba(245,158,11,0.12); color:#D97706; }
+
+  /* Alert */
+  .alert { padding:12px 16px; border-radius:var(--radius-sm); margin-bottom:16px; font-size:13px; }
+  .alert-success { background:rgba(16,185,129,0.1); color:#059669; border:1px solid rgba(16,185,129,0.2); }
+  .alert-danger { background:rgba(239,68,68,0.1); color:#DC2626; border:1px solid rgba(239,68,68,0.2); }
+  .alert-info { background:var(--accent); color:var(--primary); border:1px solid var(--accent2); }
+
+  /* Dept colors */
+  .dept-chip { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+  
+  /* Divider */
+  .divider { height:1px; background:var(--gray-100); margin:16px 0; }
+  
+  /* Section title */
+  .section-title { font-family:'Prompt',sans-serif; font-weight:600; font-size:15px; color:var(--gray-800); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  
+  /* Empty state */
+  .empty-state { text-align:center; padding:40px 20px; color:var(--gray-600); }
+  .empty-state .empty-icon { font-size:48px; margin-bottom:12px; opacity:0.5; }
+  .empty-state h3 { font-size:16px; font-weight:600; margin-bottom:6px; color:var(--gray-800); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--accent2); border-radius:2px; }
+
+  /* Loading */
+  .loader { display:inline-block; width:20px; height:20px; border:2px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 0.6s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* Year selector */
+  .year-pills { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .year-pill { padding:5px 14px; border-radius:16px; font-size:13px; border:1.5px solid var(--accent2); background:white; color:var(--gray-600); cursor:pointer; transition:all 0.15s; }
+  .year-pill.active { background:var(--primary); color:white; border-color:var(--primary); }
+
+  /* Progress bar */
+  .progress-bar { background:var(--gray-100); border-radius:4px; height:8px; overflow:hidden; }
+  .progress-fill { height:100%; border-radius:4px; transition:width 0.5s; }
+
+  /* Toast */
+  .toast { position:fixed; top:70px; left:50%; transform:translateX(-50%); background:#1E293B; color:white; padding:12px 20px; border-radius:12px; font-size:14px; z-index:999; animation:toastIn 0.3s; box-shadow:0 8px 24px rgba(0,0,0,0.3); white-space:nowrap; }
+  @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(-10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+  /* Role badge */
+  .role-admin { background:rgba(239,68,68,0.1); color:#DC2626; }
+  .role-user { background:rgba(16,185,129,0.1); color:#059669; }
+
+  /* Dashboard welcome */
+  .welcome-banner {
+    background:linear-gradient(135deg, var(--primary-dark), var(--primary-light));
+    color:white; border-radius:var(--radius); padding:20px; margin-bottom:16px;
+    position:relative; overflow:hidden;
+  }
+  .welcome-banner::after { content:'✟'; position:absolute; right:16px; bottom:-8px; font-size:80px; opacity:0.08; font-family:serif; }
+  .welcome-name { font-family:'Prompt',sans-serif; font-weight:700; font-size:18px; }
+  .welcome-date { font-size:12px; opacity:0.8; margin-top:2px; }
+  .welcome-balance { margin-top:16px; }
+  .welcome-balance-label { font-size:12px; opacity:0.8; }
+  .welcome-balance-amount { font-family:'Prompt',sans-serif; font-weight:700; font-size:28px; margin-top:2px; }
+
+  .input-icon-wrap { position:relative; }
+  .input-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:16px; pointer-events:none; }
+  .input-icon-wrap .form-control { padding-left:40px; }
+  
+  @media(max-width:360px) { .stats-grid { grid-template-columns:1fr 1fr; } .stat-value { font-size:17px; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ===================== CONFIG =====================
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAYoF97CLVw3Oay4WbJYgosskXws-Fh0Ak",
+  authDomain: "mydeliveryapp-6533c.firebaseapp.com",
+  databaseURL: "https://mydeliveryapp-6533c-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "mydeliveryapp-6533c",
+  storageBucket: "mydeliveryapp-6533c.firebasestorage.app",
+  messagingSenderId: "18244973378",
+  appId: "1:18244973378:web:23c5c89586b28cbde4cedb",
+  measurementId: "G-Y68YPSSYVJ"
+};
+const TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN";
+const TELEGRAM_CHAT_ID = "YOUR_CHAT_ID";
+
+const DEPARTMENTS = ['ประชุมนมัสการ','แผนกอาคาร','คริสเตียนศึกษา','ประกาศ','มิชชั่น','จัดเลี้ยง','ธุรการ','สันทนาการ','การเงิน','สังคมสงเคราะห์','ถวายพิเศษ'];
+const DEPT_COLORS = ['#1565C0','#0097A7','#43A047','#F57C00','#7B1FA2','#E91E63','#5D4037','#00897B','#1976D2','#558B2F','#C62828'];
+const DEPT_ICONS = ['⛪','🏛️','📖','📢','🌍','🍽️','📋','🎮','💰','🤝','🎁'];
+const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+// Demo Users
+const DEMO_USERS = [
+  { id:'admin1', email:'admin@glory.com', password:'admin1234', name:'ผู้ดูแลระบบ', role:'admin', avatar:'A' },
+  { id:'u1', email:'user@glory.com', password:'user1234', name:'ผู้ใช้งาน', role:'user', avatar:'U' },
+];
+
+// Demo data from Excel
+const DEMO_TRANSACTIONS = [
+  // January 2026 Income
+  {id:'i1',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 1',amount:5366,month:1,year:2026,week:1,createdAt:'2026-01-05',createdBy:'admin1'},
+  {id:'i2',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 2',amount:5120,month:1,year:2026,week:2,createdAt:'2026-01-12',createdBy:'admin1'},
+  {id:'i3',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 3',amount:2500,month:1,year:2026,week:3,createdAt:'2026-01-19',createdBy:'admin1'},
+  {id:'i4',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 4',amount:36110,month:1,year:2026,week:4,createdAt:'2026-01-26',createdBy:'admin1'},
+  {id:'i5',type:'income',dept:'แผนกอาคาร',desc:'รายรับแผนกอาคาร',amount:9000,month:1,year:2026,week:1,createdAt:'2026-01-05',createdBy:'admin1'},
+  // January 2026 Expense
+  {id:'e1',type:'expense',dept:'แผนกอาคาร',desc:'โอนให้โคกโคส',amount:10000,month:1,year:2026,week:1,createdAt:'2026-01-05',createdBy:'admin1'},
+  {id:'e2',type:'expense',dept:'คริสเตียนศึกษา',desc:'ถวายให้กับลุงจงรัก',amount:2500,month:1,year:2026,week:3,createdAt:'2026-01-19',createdBy:'u1'},
+  {id:'e3',type:'expense',dept:'คริสเตียนศึกษา',desc:'ถวายให้กับพี่อำนาจ',amount:5000,month:1,year:2026,week:3,createdAt:'2026-01-19',createdBy:'u1'},
+  {id:'e4',type:'expense',dept:'จัดเลี้ยง',desc:'ชำระค่าอาหารเย็นของอนุชน',amount:835,month:1,year:2026,week:3,createdAt:'2026-01-19',createdBy:'u1'},
+  {id:'e5',type:'expense',dept:'คริสเตียนศึกษา',desc:'ชำระค่าฟิวเจอร์บอร์ดสำหรับซ่อมที่บัพติศมา',amount:160,month:1,year:2026,week:3,createdAt:'2026-01-19',createdBy:'u1'},
+  {id:'e6',type:'expense',dept:'คริสเตียนศึกษา',desc:'GSC เดือน 1-3',amount:4500,month:1,year:2026,week:3,createdAt:'2026-01-19',createdBy:'u1'},
+  // February 2026
+  {id:'i10',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 1',amount:2500,month:2,year:2026,week:1,createdAt:'2026-02-02',createdBy:'admin1'},
+  {id:'i11',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 3',amount:8700,month:2,year:2026,week:3,createdAt:'2026-02-16',createdBy:'admin1'},
+  {id:'i12',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 4',amount:20390,month:2,year:2026,week:4,createdAt:'2026-02-23',createdBy:'admin1'},
+  {id:'i13',type:'income',dept:'แผนกอาคาร',desc:'รายรับแผนกอาคาร',amount:9000,month:2,year:2026,week:4,createdAt:'2026-02-23',createdBy:'admin1'},
+  {id:'i14',type:'income',dept:'จัดเลี้ยง',desc:'รายรับจัดเลี้ยง',amount:6000,month:2,year:2026,week:2,createdAt:'2026-02-09',createdBy:'admin1'},
+  {id:'e10',type:'expense',dept:'แผนกอาคาร',desc:'โอนให้โคกโคส',amount:10000,month:2,year:2026,week:1,createdAt:'2026-02-02',createdBy:'admin1'},
+  {id:'e11',type:'expense',dept:'คริสเตียนศึกษา',desc:'ชำระค่าน้ำมัน ค่าทางด่วน',amount:765,month:2,year:2026,week:3,createdAt:'2026-02-16',createdBy:'u1'},
+  {id:'e12',type:'expense',dept:'มิชชั่น',desc:'โอนให้มิชชั่น',amount:6000,month:2,year:2026,week:3,createdAt:'2026-02-16',createdBy:'admin1'},
+  {id:'e13',type:'expense',dept:'จัดเลี้ยง',desc:'ชำระค่าแก๊ส',amount:455,month:2,year:2026,week:3,createdAt:'2026-02-16',createdBy:'u1'},
+  {id:'e14',type:'expense',dept:'จัดเลี้ยง',desc:'ชำระค่าอาหาร 4 สัปดาห์ ผลไม้',amount:6279,month:2,year:2026,week:4,createdAt:'2026-02-23',createdBy:'u1'},
+  {id:'e15',type:'expense',dept:'ธุรการ',desc:'ค่าไฟชั้น 3',amount:500,month:2,year:2026,week:4,createdAt:'2026-02-23',createdBy:'u1'},
+  {id:'e16',type:'expense',dept:'ธุรการ',desc:'ค่าไฟคริสตจักรเดือน 2 ค่าน้ำเดือน 1,2',amount:3392.62,month:2,year:2026,week:4,createdAt:'2026-02-23',createdBy:'u1'},
+  // March 2026
+  {id:'i20',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 1',amount:6300,month:3,year:2026,week:1,createdAt:'2026-03-01',createdBy:'admin1'},
+  {id:'i21',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 2',amount:1000,month:3,year:2026,week:2,createdAt:'2026-03-08',createdBy:'admin1'},
+  {id:'i22',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 4',amount:7900,month:3,year:2026,week:4,createdAt:'2026-03-22',createdBy:'admin1'},
+  {id:'i23',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 5',amount:3748,month:3,year:2026,week:5,createdAt:'2026-03-29',createdBy:'admin1'},
+  {id:'i24',type:'income',dept:'แผนกอาคาร',desc:'รายรับแผนกอาคาร',amount:9000,month:3,year:2026,week:1,createdAt:'2026-03-01',createdBy:'admin1'},
+  {id:'i25',type:'income',dept:'คริสเตียนศึกษา',desc:'รายรับคริสเตียนศึกษา',amount:8000,month:3,year:2026,week:4,createdAt:'2026-03-22',createdBy:'admin1'},
+  {id:'e20',type:'expense',dept:'แผนกอาคาร',desc:'โอนให้โคกโคส',amount:10000,month:3,year:2026,week:1,createdAt:'2026-03-01',createdBy:'admin1'},
+  {id:'e21',type:'expense',dept:'คริสเตียนศึกษา',desc:'ชำระค่าเดินทางอนุชนไปค่าย Bible week',amount:5000,month:3,year:2026,week:3,createdAt:'2026-03-15',createdBy:'u1'},
+  {id:'e22',type:'expense',dept:'คริสเตียนศึกษา',desc:'ชำระค่าถวายเพื่อค่าย Bible week',amount:2000,month:3,year:2026,week:3,createdAt:'2026-03-15',createdBy:'u1'},
+  {id:'e23',type:'expense',dept:'คริสเตียนศึกษา',desc:'ชำระค่าอาหารอบรมครูรวี',amount:2500,month:3,year:2026,week:3,createdAt:'2026-03-15',createdBy:'u1'},
+  {id:'e24',type:'expense',dept:'มิชชั่น',desc:'โอนให้มิชชั่น',amount:6000,month:3,year:2026,week:4,createdAt:'2026-03-22',createdBy:'admin1'},
+  {id:'e25',type:'expense',dept:'จัดเลี้ยง',desc:'ชำระค่าของแห้ง',amount:411,month:3,year:2026,week:4,createdAt:'2026-03-22',createdBy:'u1'},
+  {id:'e26',type:'expense',dept:'จัดเลี้ยง',desc:'ชำระค่าอาหาร 5 สัปดาห์',amount:5410,month:3,year:2026,week:5,createdAt:'2026-03-29',createdBy:'u1'},
+  // April 2026
+  {id:'i30',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 1',amount:12150,month:4,year:2026,week:1,createdAt:'2026-04-05',createdBy:'admin1'},
+  {id:'i31',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 2',amount:2000,month:4,year:2026,week:2,createdAt:'2026-04-12',createdBy:'admin1'},
+  {id:'i32',type:'income',dept:'สิบลด',desc:'สิบลดอาทิตย์ที่ 4',amount:37516,month:4,year:2026,week:4,createdAt:'2026-04-26',createdBy:'admin1'},
+  {id:'i33',type:'income',dept:'แผนกอาคาร',desc:'รายรับแผนกอาคาร',amount:9000,month:4,year:2026,week:1,createdAt:'2026-04-05',createdBy:'admin1'},
+  {id:'e30',type:'expense',dept:'แผนกอาคาร',desc:'โอนให้โคกโคส',amount:10000,month:4,year:2026,week:1,createdAt:'2026-04-05',createdBy:'admin1'},
+  {id:'e31',type:'expense',dept:'คริสเตียนศึกษา',desc:'ชำระค่าไข่วันอิสเตอร์',amount:230,month:4,year:2026,week:2,createdAt:'2026-04-12',createdBy:'u1'},
+  {id:'e32',type:'expense',dept:'มิชชั่น',desc:'โอนให้มิชชั่น',amount:6000,month:4,year:2026,week:3,createdAt:'2026-04-19',createdBy:'admin1'},
+  {id:'e33',type:'expense',dept:'ธุรการ',desc:'ชำระค่าของแห้ง',amount:1308,month:4,year:2026,week:4,createdAt:'2026-04-26',createdBy:'u1'},
+  {id:'e34',type:'expense',dept:'ธุรการ',desc:'ชำระค่าอาหาร 4 สัปดาห์ ผลไม้',amount:4322,month:4,year:2026,week:4,createdAt:'2026-04-26',createdBy:'u1'},
+  {id:'e35',type:'expense',dept:'การเงิน',desc:'ตอบแทนผู้รับใช้',amount:7000,month:4,year:2026,week:4,createdAt:'2026-04-26',createdBy:'admin1'},
+  {id:'e36',type:'expense',dept:'จัดเลี้ยง',desc:'รับประทานอาหาร สปาเก็ตตี้วันอิสเตอร์',amount:500,month:4,year:2026,week:2,createdAt:'2026-04-12',createdBy:'u1'},
+];
+
+// ===================== FIREBASE =====================
+let db = null;
+let firebaseReady = false;
+
+const initFirebase = () => {
+  try {
+    const script1 = document.createElement('script');
+    script1.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+    script1.onload = () => {
+      const script2 = document.createElement('script');
+      script2.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
+      script2.onload = () => {
+        if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+        db = firebase.database();
+        firebaseReady = true;
+        console.log('✅ Firebase connected');
+      };
+      document.head.appendChild(script2);
+    };
+    document.head.appendChild(script1);
+  } catch(e) { console.error('Firebase init error:', e); }
+};
+
+const fbSaveTx = (tx) => {
+  if (!firebaseReady) return;
+  db.ref('transactions/' + tx.id).set(tx);
+};
+
+const fbDeleteTx = (id) => {
+  if (!firebaseReady) return;
+  db.ref('transactions/' + id).remove();
+};
+
+const fbListenTx = (callback) => {
+  if (!firebaseReady) { setTimeout(() => fbListenTx(callback), 1000); return; }
+  db.ref('transactions').on('value', snap => {
+    const data = snap.val();
+    if (data) callback(Object.values(data));
+    else callback([]);
+  });
+};
+
+// ===================== HELPERS =====================
+const fmt = (n) => new Intl.NumberFormat('th-TH').format(Math.round(n));
+const fmtFull = (n) => '฿' + fmt(n);
+const getDeptColor = (dept) => DEPT_COLORS[DEPARTMENTS.indexOf(dept)] || '#64748B';
+const getDeptIcon = (dept) => DEPT_ICONS[DEPARTMENTS.indexOf(dept)] || '📌';
+const today = () => new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+
+const sendTelegram = async (msg) => {
+  try {
+    if (TELEGRAM_BOT_TOKEN === 'YOUR_BOT_TOKEN') return;
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:TELEGRAM_CHAT_ID, text:msg, parse_mode:'HTML'})
+    });
+  } catch(e) {}
+};
+
+// ===================== COMPONENTS =====================
+const Toast = ({ msg, onClose }) => {
+  useEffect(() => { const t = setTimeout(onClose, 2500); return () => clearTimeout(t); }, []);
+  return <div className="toast">{msg}</div>;
+};
+
+// ===================== LOGIN =====================
+const LoginPage = ({ onLogin }) => {
+  const [email, setEmail] = useState('');
+  const [pwd, setPwd] = useState('');
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true); setErr('');
+    await new Promise(r => setTimeout(r, 600));
+    const user = DEMO_USERS.find(u => u.email === email && u.password === pwd);
+    if (user) { onLogin(user); }
+    else { setErr('อีเมลหรือรหัสผ่านไม่ถูกต้อง'); }
+    setLoading(false);
+  };
+
+  return (
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-logo">
+          <div className="login-logo-icon">✟</div>
+          <div className="login-title">Glory Church</div>
+          <div className="login-sub">ระบบบัญชีคริสตจักรพระสิริ</div>
+        </div>
+        {err && <div className="alert alert-danger">⚠️ {err}</div>}
+        <form onSubmit={handleLogin}>
+          <div className="form-group">
+            <label className="form-label">อีเมล</label>
+            <div className="input-icon-wrap">
+              <span className="input-icon">✉️</span>
+              <input className="form-control" type="text" value={email} onChange={e=>setEmail(e.target.value)} placeholder="example@glorychurch.th" required />
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">รหัสผ่าน</label>
+            <div className="input-icon-wrap">
+              <span className="input-icon">🔒</span>
+              <input className="form-control" type="password" value={pwd} onChange={e=>setPwd(e.target.value)} placeholder="รหัสผ่าน" required />
+            </div>
+          </div>
+          <button className="btn btn-primary" type="submit" disabled={loading}>
+            {loading ? <span className="loader"/> : '🔑 เข้าสู่ระบบ'}
+          </button>
+        </form>
+        <div style={{marginTop:20,padding:'14px',background:'#F0F6FF',borderRadius:10,fontSize:12,color:'#64748B'}}>
+          <div style={{fontWeight:600,marginBottom:6,color:'#1565C0'}}>บัญชีทดสอบ:</div>
+          <div>👑 Admin: admin@glory.com / admin1234</div>
+          <div>👤 User: user@glory.com / user1234</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ===================== DASHBOARD =====================
+const Dashboard = ({ user, transactions, onAdd }) => {
+  const [filterMonth, setFilterMonth] = useState(new Date().getMonth()+1);
+  const [filterYear, setFilterYear] = useState(2026);
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
+
+  const filtered = transactions.filter(t => t.month === filterMonth && t.year === filterYear);
+  const income = filtered.filter(t=>t.type==='income').reduce((a,b)=>a+b.amount,0);
+  const expense = filtered.filter(t=>t.type==='expense').reduce((a,b)=>a+b.amount,0);
+  const balance = income - expense;
+
+  // Dept breakdown
+  const deptData = DEPARTMENTS.map((d,i) => ({
+    dept:d, icon:DEPT_ICONS[i], color:DEPT_COLORS[i],
+    income: filtered.filter(t=>t.type==='income'&&t.dept===d).reduce((a,b)=>a+b.amount,0),
+    expense: filtered.filter(t=>t.type==='expense'&&t.dept===d).reduce((a,b)=>a+b.amount,0),
+  })).filter(d=>d.income>0||d.expense>0);
+
+  // All months for chart
+  const monthlyData = MONTHS_SHORT.map((m,i) => {
+    const txs = transactions.filter(t=>t.month===i+1&&t.year===filterYear);
+    return {
+      inc: txs.filter(t=>t.type==='income').reduce((a,b)=>a+b.amount,0),
+      exp: txs.filter(t=>t.type==='expense').reduce((a,b)=>a+b.amount,0),
+    };
+  });
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    if (chartInstance.current) chartInstance.current.destroy();
+    chartInstance.current = new Chart(chartRef.current, {
+      type:'bar',
+      data:{
+        labels: MONTHS_SHORT,
+        datasets:[
+          {label:'รายรับ',data:monthlyData.map(d=>d.inc),backgroundColor:'rgba(16,185,129,0.7)',borderRadius:4,borderSkipped:false},
+          {label:'รายจ่าย',data:monthlyData.map(d=>d.exp),backgroundColor:'rgba(239,68,68,0.65)',borderRadius:4,borderSkipped:false},
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}}},
+        scales:{
+          x:{grid:{display:false},ticks:{font:{size:10}}},
+          y:{grid:{color:'#f0f0f0'},ticks:{font:{size:10},callback:v=>'฿'+fmt(v)}}
+        }
+      }
+    });
+  }, [filterYear, transactions]);
+
+  const recent = [...filtered].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,5);
+
+  return (
+    <div>
+      {/* Welcome Banner */}
+      <div className="welcome-banner">
+        <div className="welcome-name">สวัสดี, {user.name} {user.role==='admin'?'👑':''}</div>
+        <div className="welcome-date">{today()}</div>
+        <div className="welcome-balance">
+          <div className="welcome-balance-label">ยอดคงเหลือประจำเดือน {MONTHS_TH[filterMonth-1]}</div>
+          <div className="welcome-balance-amount">{fmtFull(balance)}</div>
+        </div>
+      </div>
+
+      {/* Month filter */}
+      <div className="filter-bar">
+        {MONTHS_SHORT.map((m,i) => (
+          <button key={i} className={`filter-chip ${filterMonth===i+1?'active':''}`} onClick={()=>setFilterMonth(i+1)}>{m}</button>
+        ))}
+      </div>
+
+      {/* Stats */}
+      <div className="stats-grid">
+        <div className="stat-card income">
+          <div className="stat-icon">💚</div>
+          <div className="stat-label">รายรับ</div>
+          <div className="stat-value income">{fmtFull(income)}</div>
+        </div>
+        <div className="stat-card expense">
+          <div className="stat-icon">🔴</div>
+          <div className="stat-label">รายจ่าย</div>
+          <div className="stat-value expense">{fmtFull(expense)}</div>
+        </div>
+        <div className="stat-card balance">
+          <div className="stat-icon">💰</div>
+          <div className="stat-label">คงเหลือ</div>
+          <div className="stat-value balance">{fmtFull(balance)}</div>
+        </div>
+        <div className="stat-card transactions">
+          <div className="stat-icon">📊</div>
+          <div className="stat-label">รายการ</div>
+          <div className="stat-value transactions">{filtered.length} รายการ</div>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">📈 รายรับ-รายจ่ายรายเดือน {filterYear}</div>
+          <div className="year-pills">
+            {[2022,2023,2024,2025,2026].map(y=>(
+              <button key={y} className={`year-pill ${filterYear===y?'active':''}`} onClick={()=>setFilterYear(y)}>{y}</button>
+            ))}
+          </div>
+        </div>
+        <div className="chart-container"><canvas ref={chartRef}/></div>
+      </div>
+
+      {/* Department breakdown */}
+      {deptData.length > 0 && (
+        <div className="card">
+          <div className="card-title" style={{marginBottom:16}}>🏷️ แยกตามแผนก</div>
+          {deptData.map((d,i) => (
+            <div key={i} style={{marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4,alignItems:'center'}}>
+                <span style={{fontSize:13,fontWeight:600}}>{d.icon} {d.dept}</span>
+                <div style={{display:'flex',gap:8}}>
+                  {d.income>0&&<span className="badge badge-success">+{fmtFull(d.income)}</span>}
+                  {d.expense>0&&<span className="badge badge-danger">-{fmtFull(d.expense)}</span>}
+                </div>
+              </div>
+              <div className="progress-bar">
+                <div className="progress-fill" style={{width:`${Math.min(100,(d.expense/(income||1))*100)}%`,background:d.color}}/>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Recent Transactions */}
+      {recent.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">🕐 รายการล่าสุด</div>
+          </div>
+          {recent.map(tx => (
+            <div key={tx.id} className="tx-item">
+              <div className={`tx-icon ${tx.type}`}>{getDeptIcon(tx.dept)}</div>
+              <div className="tx-info">
+                <div className="tx-name">{tx.desc}</div>
+                <div className="tx-meta">{tx.dept} • {tx.createdAt}</div>
+              </div>
+              <div className={`tx-amount ${tx.type}`}>
+                {tx.type==='income'?'+':'-'}{fmtFull(tx.amount)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ===================== TRANSACTIONS =====================
+const Transactions = ({ user, transactions, onAdd, onDelete, showToast }) => {
+  const [showForm, setShowForm] = useState(false);
+  const [filterType, setFilterType] = useState('all');
+  const [filterDept, setFilterDept] = useState('all');
+  const [filterMonth, setFilterMonth] = useState(0);
+  const [filterYear, setFilterYear] = useState(2026);
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({type:'income',dept:'สิบลด',desc:'',amount:'',month:new Date().getMonth()+1,year:2026,week:1});
+  const [loading, setLoading] = useState(false);
+
+  const filtered = transactions.filter(t => {
+    if (filterType!=='all' && t.type!==filterType) return false;
+    if (filterDept!=='all' && t.dept!==filterDept) return false;
+    if (filterMonth && t.month!==filterMonth) return false;
+    if (t.year!==filterYear) return false;
+    if (search && !t.desc.includes(search) && !t.dept.includes(search)) return false;
+    return true;
+  }).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+
+  const handleSubmit = async () => {
+    if (!form.desc||!form.amount) { showToast('⚠️ กรุณากรอกข้อมูลให้ครบ'); return; }
+    setLoading(true);
+    await new Promise(r=>setTimeout(r,400));
+    const tx = { ...form, id:'t'+Date.now(), amount:parseFloat(form.amount), createdAt:new Date().toISOString().split('T')[0], createdBy:user.id };
+    onAdd(tx);
+    // Send Telegram notification
+    const emoji = tx.type==='income'?'💚':'🔴';
+    const typeLabel = tx.type==='income'?'รายรับ':'รายจ่าย';
+    const msg = `${emoji} <b>Glory Church - ${typeLabel}ใหม่</b>\n\n📋 รายการ: ${tx.desc}\n🏷️ แผนก: ${tx.dept}\n💰 จำนวน: ${fmtFull(tx.amount)}\n📅 เดือน: ${MONTHS_TH[tx.month-1]} ${tx.year}\n👤 โดย: ${user.name}`;
+    sendTelegram(msg);
+    setShowForm(false);
+    setForm({type:'income',dept:'สิบลด',desc:'',amount:'',month:new Date().getMonth()+1,year:2026,week:1});
+    showToast('✅ บันทึกรายการเรียบร้อย');
+    setLoading(false);
+  };
+
+  const totalIncome = filtered.filter(t=>t.type==='income').reduce((a,b)=>a+b.amount,0);
+  const totalExpense = filtered.filter(t=>t.type==='expense').reduce((a,b)=>a+b.amount,0);
+
+  return (
+    <div>
+      {/* Summary bar */}
+      <div className="card" style={{padding:'14px 16px'}}>
+        <div style={{display:'flex',justifyContent:'space-around'}}>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:11,color:'#64748B'}}>รายรับ</div>
+            <div style={{fontFamily:'Prompt',fontWeight:700,fontSize:15,color:'#10B981'}}>+{fmtFull(totalIncome)}</div>
+          </div>
+          <div style={{width:1,background:'#E0E7FF'}}/>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:11,color:'#64748B'}}>รายจ่าย</div>
+            <div style={{fontFamily:'Prompt',fontWeight:700,fontSize:15,color:'#EF4444'}}>-{fmtFull(totalExpense)}</div>
+          </div>
+          <div style={{width:1,background:'#E0E7FF'}}/>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:11,color:'#64748B'}}>คงเหลือ</div>
+            <div style={{fontFamily:'Prompt',fontWeight:700,fontSize:15,color:'#1565C0'}}>{fmtFull(totalIncome-totalExpense)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="card" style={{padding:'14px 16px'}}>
+        <input className="form-control" placeholder="🔍 ค้นหารายการ..." value={search} onChange={e=>setSearch(e.target.value)} style={{marginBottom:10}} />
+        <div className="filter-bar" style={{marginBottom:8}}>
+          {['all','income','expense'].map(t=>(
+            <button key={t} className={`filter-chip ${filterType===t?'active':''}`} onClick={()=>setFilterType(t)}>
+              {t==='all'?'ทั้งหมด':t==='income'?'💚 รายรับ':'🔴 รายจ่าย'}
+            </button>
+          ))}
+        </div>
+        <div className="filter-bar" style={{marginBottom:8}}>
+          <button className={`filter-chip ${filterMonth===0?'active':''}`} onClick={()=>setFilterMonth(0)}>ทุกเดือน</button>
+          {MONTHS_SHORT.map((m,i)=>(
+            <button key={i} className={`filter-chip ${filterMonth===i+1?'active':''}`} onClick={()=>setFilterMonth(i+1)}>{m}</button>
+          ))}
+        </div>
+        <div className="filter-bar">
+          <button className={`filter-chip ${filterDept==='all'?'active':''}`} onClick={()=>setFilterDept('all')}>ทุกแผนก</button>
+          {DEPARTMENTS.map(d=>(
+            <button key={d} className={`filter-chip ${filterDept===d?'active':''}`} onClick={()=>setFilterDept(d)}>{d}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Transaction list */}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">📋 รายการทั้งหมด ({filtered.length})</div>
+        </div>
+        {filtered.length===0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">📭</div>
+            <h3>ไม่พบรายการ</h3>
+            <p>ยังไม่มีรายการในช่วงเวลาที่เลือก</p>
+          </div>
+        ) : filtered.map(tx => (
+          <div key={tx.id} className="tx-item">
+            <div className={`tx-icon ${tx.type}`} style={{fontSize:22}}>{getDeptIcon(tx.dept)}</div>
+            <div className="tx-info">
+              <div className="tx-name">{tx.desc}</div>
+              <div className="tx-meta">{MONTHS_TH[tx.month-1]} {tx.year} • สัปดาห์ {tx.week}</div>
+              <span className="tx-badge">{tx.dept}</span>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
+              <div className={`tx-amount ${tx.type}`}>{tx.type==='income'?'+':'-'}{fmtFull(tx.amount)}</div>
+              {user.role==='admin' && (
+                <button onClick={()=>{onDelete(tx.id);showToast('🗑️ ลบรายการแล้ว');}} style={{background:'none',border:'none',color:'#EF4444',fontSize:16,cursor:'pointer',padding:'2px 6px'}}>🗑️</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* FAB */}
+      <button className="fab" onClick={()=>setShowForm(true)}>＋</button>
+
+      {/* Add Form Modal */}
+      {showForm && (
+        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShowForm(false)}}>
+          <div className="modal-sheet">
+            <div className="modal-handle"/>
+            <div className="modal-title">📝 เพิ่มรายการ</div>
+            
+            {/* Type selector */}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
+              <button onClick={()=>setForm({...form,type:'income'})} style={{padding:'12px',border:`2px solid ${form.type==='income'?'#10B981':'#E0E7FF'}`,borderRadius:10,background:form.type==='income'?'rgba(16,185,129,0.1)':'white',color:form.type==='income'?'#059669':'#64748B',fontFamily:'Sarabun',fontWeight:600,cursor:'pointer',fontSize:14}}>
+                💚 รายรับ
+              </button>
+              <button onClick={()=>setForm({...form,type:'expense'})} style={{padding:'12px',border:`2px solid ${form.type==='expense'?'#EF4444':'#E0E7FF'}`,borderRadius:10,background:form.type==='expense'?'rgba(239,68,68,0.1)':'white',color:form.type==='expense'?'#DC2626':'#64748B',fontFamily:'Sarabun',fontWeight:600,cursor:'pointer',fontSize:14}}>
+                🔴 รายจ่าย
+              </button>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">รายละเอียด</label>
+              <input className="form-control" placeholder="ระบุรายละเอียด..." value={form.desc} onChange={e=>setForm({...form,desc:e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">จำนวนเงิน (บาท)</label>
+              <input className="form-control" type="number" placeholder="0.00" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">แผนก</label>
+              <select className="form-control" value={form.dept} onChange={e=>setForm({...form,dept:e.target.value})}>
+                {DEPARTMENTS.map(d=><option key={d} value={d}>{getDeptIcon(d)} {d}</option>)}
+              </select>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">เดือน</label>
+                <select className="form-control" value={form.month} onChange={e=>setForm({...form,month:parseInt(e.target.value)})}>
+                  {MONTHS_TH.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">สัปดาห์</label>
+                <select className="form-control" value={form.week} onChange={e=>setForm({...form,week:parseInt(e.target.value)})}>
+                  {[1,2,3,4,5].map(w=><option key={w} value={w}>สัปดาห์ที่ {w}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <button className={`btn btn-${form.type==='income'?'success':'danger'}`} onClick={handleSubmit} disabled={loading}>
+              {loading ? <span className="loader"/> : `💾 บันทึก${form.type==='income'?'รายรับ':'รายจ่าย'}`}
+            </button>
+            <button className="btn btn-outline" style={{marginTop:10}} onClick={()=>setShowForm(false)}>ยกเลิก</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ===================== REPORTS =====================
+const Reports = ({ transactions }) => {
+  const [year, setYear] = useState(2026);
+  const [reportType, setReportType] = useState('expense'); // 'income' | 'expense'
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
+
+  const yearTxs = transactions.filter(t=>t.year===year);
+  const totalIncome = yearTxs.filter(t=>t.type==='income').reduce((a,b)=>a+b.amount,0);
+  const totalExpense = yearTxs.filter(t=>t.type==='expense').reduce((a,b)=>a+b.amount,0);
+
+  // Dept data based on selected type
+  const deptData = DEPARTMENTS.map((d,i)=>({
+    dept:d, icon:DEPT_ICONS[i], color:DEPT_COLORS[i],
+    total: yearTxs.filter(t=>t.type===reportType&&t.dept===d).reduce((a,b)=>a+b.amount,0)
+  })).filter(d=>d.total>0).sort((a,b)=>b.total-a.total);
+
+  const grandTotal = reportType==='income' ? totalIncome : totalExpense;
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    if (chartInstance.current) chartInstance.current.destroy();
+    if (deptData.length===0) return;
+    chartInstance.current = new Chart(chartRef.current, {
+      type:'doughnut',
+      data:{
+        labels: deptData.map(d=>d.dept),
+        datasets:[{
+          data:deptData.map(d=>d.total),
+          backgroundColor:deptData.map(d=>d.color),
+          borderWidth:2,borderColor:'white'
+        }]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:8}}}
+      }
+    });
+  }, [year, transactions, reportType]);
+
+  const monthlyTable = MONTHS_TH.map((m,i)=>{
+    const txs = yearTxs.filter(t=>t.month===i+1);
+    return {
+      month:m,
+      income:txs.filter(t=>t.type==='income').reduce((a,b)=>a+b.amount,0),
+      expense:txs.filter(t=>t.type==='expense').reduce((a,b)=>a+b.amount,0),
+    };
+  }).filter(r=>r.income>0||r.expense>0);
+
+  const isIncome = reportType==='income';
+  const typeColor = isIncome ? '#10B981' : '#EF4444';
+  const typeLabel = isIncome ? 'รายรับ' : 'รายจ่าย';
+
+  return (
+    <div>
+      {/* Year selector */}
+      <div className="year-pills" style={{marginBottom:12}}>
+        {[2022,2023,2024,2025,2026].map(y=>(
+          <button key={y} className={`year-pill ${year===y?'active':''}`} onClick={()=>setYear(y)}>ปี {y}</button>
+        ))}
+      </div>
+
+      {/* Annual summary */}
+      <div className="card">
+        <div className="card-title" style={{marginBottom:16}}>📊 สรุปประจำปี {year}</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+          {[
+            {label:'รายรับรวม',value:totalIncome,color:'#10B981'},
+            {label:'รายจ่ายรวม',value:totalExpense,color:'#EF4444'},
+            {label:'คงเหลือ',value:totalIncome-totalExpense,color:'#1565C0'},
+          ].map((s,i)=>(
+            <div key={i} style={{textAlign:'center',padding:'12px 6px',background:'#F8FAFF',borderRadius:10}}>
+              <div style={{fontSize:11,color:'#64748B',marginBottom:4}}>{s.label}</div>
+              <div style={{fontFamily:'Prompt',fontWeight:700,fontSize:13,color:s.color}}>{fmtFull(s.value)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Toggle Income / Expense */}
+      <div className="card" style={{padding:'14px 16px'}}>
+        <div className="card-title" style={{marginBottom:12}}>🥧 รายละเอียดตามแผนก</div>
+
+        {/* Toggle buttons */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:16}}>
+          <button
+            onClick={()=>setReportType('income')}
+            style={{
+              padding:'11px',border:`2px solid ${!isIncome?'#E0E7FF':'#10B981'}`,
+              borderRadius:10,background:isIncome?'rgba(16,185,129,0.1)':'white',
+              color:isIncome?'#059669':'#64748B',fontFamily:'Sarabun',fontWeight:700,
+              cursor:'pointer',fontSize:14,transition:'all 0.2s'
+            }}>
+            💚 รายรับ
+          </button>
+          <button
+            onClick={()=>setReportType('expense')}
+            style={{
+              padding:'11px',border:`2px solid ${isIncome?'#E0E7FF':'#EF4444'}`,
+              borderRadius:10,background:!isIncome?'rgba(239,68,68,0.1)':'white',
+              color:!isIncome?'#DC2626':'#64748B',fontFamily:'Sarabun',fontWeight:700,
+              cursor:'pointer',fontSize:14,transition:'all 0.2s'
+            }}>
+            🔴 รายจ่าย
+          </button>
+        </div>
+
+        {/* Total for selected type */}
+        <div style={{textAlign:'center',padding:'12px',background:isIncome?'rgba(16,185,129,0.08)':'rgba(239,68,68,0.08)',borderRadius:12,marginBottom:16}}>
+          <div style={{fontSize:12,color:'#64748B',marginBottom:4}}>{typeLabel}รวมทั้งหมดปี {year}</div>
+          <div style={{fontFamily:'Prompt',fontWeight:700,fontSize:24,color:typeColor}}>{fmtFull(grandTotal)}</div>
+        </div>
+
+        {/* Chart */}
+        {deptData.length > 0 ? (
+          <>
+            <div className="chart-container"><canvas ref={chartRef}/></div>
+            <div className="divider"/>
+            {/* Dept list */}
+            {deptData.map((d,i)=>(
+              <div key={i} style={{padding:'10px 0',borderBottom:i<deptData.length-1?'1px solid #EEF2FF':'none'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <div style={{width:10,height:10,borderRadius:2,background:d.color,flexShrink:0}}/>
+                    <span style={{fontSize:13,fontWeight:600}}>{d.icon} {d.dept}</span>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <span style={{fontSize:12,color:'#64748B'}}>{grandTotal?Math.round(d.total/grandTotal*100):0}%</span>
+                    <span style={{fontFamily:'Prompt',fontWeight:700,fontSize:13,color:typeColor}}>{fmtFull(d.total)}</span>
+                  </div>
+                </div>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{width:`${grandTotal?Math.round(d.total/grandTotal*100):0}%`,background:d.color}}/>
+                </div>
+              </div>
+            ))}
+          </>
+        ) : (
+          <div className="empty-state" style={{padding:'24px 0'}}>
+            <div className="empty-icon">📭</div>
+            <p>ไม่มีข้อมูล{typeLabel}ปี {year}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Monthly table */}
+      {monthlyTable.length>0 && (
+        <div className="card">
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <div className="card-title">📅 สรุปรายเดือน</div>
+            <span className="badge" style={{background:isIncome?'rgba(16,185,129,0.1)':'rgba(239,68,68,0.1)',color:typeColor}}>{typeLabel}</span>
+          </div>
+          {monthlyTable.map((r,i)=>{
+            const val = isIncome ? r.income : r.expense;
+            const maxVal = Math.max(...monthlyTable.map(x=>isIncome?x.income:x.expense));
+            return (
+              <div key={i} style={{padding:'10px 0',borderBottom:i<monthlyTable.length-1?'1px solid #EEF2FF':'none'}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
+                  <span style={{fontWeight:600,fontSize:14}}>{r.month}</span>
+                  <span style={{fontFamily:'Prompt',fontWeight:700,fontSize:14,color:typeColor}}>
+                    {isIncome?'+':'-'}{fmtFull(val)}
+                  </span>
+                </div>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{width:`${maxVal?Math.round(val/maxVal*100):0}%`,background:typeColor,opacity:0.7}}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ===================== SETTINGS / PROFILE =====================
+const Settings = ({ user, onLogout }) => (
+  <div>
+    <div className="card">
+      <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:20}}>
+        <div style={{width:64,height:64,borderRadius:50,background:'linear-gradient(135deg,#1565C0,#42A5F5)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:24,fontWeight:700}}>{user.avatar}</div>
+        <div>
+          <div style={{fontFamily:'Prompt',fontWeight:700,fontSize:18}}>{user.name}</div>
+          <div style={{fontSize:13,color:'#64748B',marginTop:2}}>{user.email}</div>
+          <span className={`badge ${user.role==='admin'?'badge-danger':'badge-success'}`} style={{marginTop:6}}>
+            {user.role==='admin'?'👑 ผู้ดูแลระบบ':'👤 ผู้ใช้งาน'}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div className="card">
+      <div className="section-title">⚙️ ตั้งค่าระบบ</div>
+      <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        {[
+          {icon:'🔔',label:'การแจ้งเตือน Telegram',desc:'เชื่อมต่อ Bot แจ้งเตือนอัตโนมัติ'},
+          {icon:'🔥',label:'Firebase Database',desc:'ซิงค์ข้อมูลแบบเรียลไทม์'},
+          {icon:'📤',label:'ส่งออกรายงาน',desc:'Export เป็น PDF หรือ Excel'},
+          {icon:'👥',label:'จัดการผู้ใช้',desc:'เพิ่ม/ลบ ผู้ใช้งาน 12 คน'},
+        ].map((item,i)=>(
+          <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'12px',background:'#F8FAFF',borderRadius:10}}>
+            <span style={{fontSize:22}}>{item.icon}</span>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:600,fontSize:14}}>{item.label}</div>
+              <div style={{fontSize:12,color:'#64748B'}}>{item.desc}</div>
+            </div>
+            <span style={{color:'#64748B'}}>›</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <div className="card" style={{background:'#FFF8F8'}}>
+      <div className="alert alert-info" style={{marginBottom:16}}>
+        <b>🔧 วิธีเชื่อมต่อ Firebase & Telegram</b><br/>
+        แก้ไขค่าตัวแปรในโค้ดส่วน CONFIG:<br/>
+        • FIREBASE_CONFIG - ใส่ค่าจาก Firebase Console<br/>
+        • TELEGRAM_BOT_TOKEN - Token จาก @BotFather<br/>
+        • TELEGRAM_CHAT_ID - ID กลุ่ม/ช่อง Telegram
+      </div>
+      <button className="btn btn-danger" onClick={onLogout}>🚪 ออกจากระบบ</button>
+    </div>
+  </div>
+);
+
+// ===================== MAIN APP =====================
+const App = () => {
+  const [user, setUser] = useState(null);
+  const [tab, setTab] = useState('dashboard');
+  const [transactions, setTransactions] = useState(DEMO_TRANSACTIONS);
+  const [toast, setToast] = useState(null);
+  const [fbStatus, setFbStatus] = useState('connecting'); // connecting | online | offline
+
+  useEffect(() => {
+    initFirebase();
+    // Wait for firebase then listen
+    const check = setInterval(() => {
+      if (firebaseReady) {
+        clearInterval(check);
+        setFbStatus('online');
+        fbListenTx((txs) => {
+          if (txs.length > 0) setTransactions(txs);
+        });
+      }
+    }, 500);
+    setTimeout(() => { if (!firebaseReady) setFbStatus('offline'); }, 6000);
+  }, []);
+
+  const showToast = (msg) => setToast(msg);
+
+  const addTx = (tx) => {
+    fbSaveTx(tx);
+    setTransactions(prev => {
+      if (prev.find(t=>t.id===tx.id)) return prev;
+      return [tx, ...prev];
+    });
+  };
+
+  const deleteTx = (id) => {
+    fbDeleteTx(id);
+    setTransactions(prev => prev.filter(t=>t.id!==id));
+  };
+
+  if (!user) return <LoginPage onLogin={setUser} />;
+
+  const tabs = [
+    {id:'dashboard',icon:'🏠',label:'หน้าหลัก'},
+    {id:'transactions',icon:'📋',label:'รายการ'},
+    {id:'reports',icon:'📊',label:'รายงาน'},
+    {id:'settings',icon:'⚙️',label:'ตั้งค่า'},
+  ];
+
+  return (
+    <>
+      <div className="navbar">
+        <div className="navbar-brand">
+          <div className="navbar-logo">✟</div>
+          <div>
+            <div className="navbar-title">Glory Church</div>
+            <div className="navbar-subtitle">ระบบบัญชีคริสตจักรพระสิริ</div>
+          </div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{display:'flex',alignItems:'center',gap:4,fontSize:11,opacity:0.85}}>
+            <div style={{width:7,height:7,borderRadius:'50%',background:fbStatus==='online'?'#4ADE80':fbStatus==='connecting'?'#FCD34D':'#F87171',boxShadow:`0 0 6px ${fbStatus==='online'?'#4ADE80':fbStatus==='connecting'?'#FCD34D':'#F87171'}`}}/>
+            {fbStatus==='online'?'ออนไลน์':fbStatus==='connecting'?'กำลังเชื่อมต่อ...':'ออฟไลน์'}
+          </div>
+          <div className="navbar-user" onClick={()=>setTab('settings')}>
+            <div className="navbar-avatar">{user.avatar}</div>
+            <span style={{fontSize:12}}>{user.name.split(' ')[0]}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="main-content">
+        {tab==='dashboard' && <Dashboard user={user} transactions={transactions} onAdd={addTx} />}
+        {tab==='transactions' && <Transactions user={user} transactions={transactions} onAdd={addTx} onDelete={deleteTx} showToast={showToast} />}
+        {tab==='reports' && <Reports transactions={transactions} />}
+        {tab==='settings' && <Settings user={user} onLogout={()=>setUser(null)} />}
+      </div>
+
+      <div className="bottom-nav">
+        {tabs.map(t=>(
+          <button key={t.id} className={`bottom-nav-item ${tab===t.id?'active':''}`} onClick={()=>setTab(t.id)}>
+            <span className="nav-icon">{t.icon}</span>
+            <span>{t.label}</span>
+            {tab===t.id && <div className="nav-dot"/>}
+          </button>
+        ))}
+      </div>
+
+      {toast && <Toast msg={toast} onClose={()=>setToast(null)} />}
+    </>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
