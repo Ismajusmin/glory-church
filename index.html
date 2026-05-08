@@ -666,6 +666,8 @@ const AuthPage = ({ onLogin }) => {
         role: 'user', status: 'pending',
         createdAt: new Date().toISOString()
       });
+      // Telegram notification for admin
+      sendTelegram(`👤 <b>สมัครสมาชิกใหม่ - Glory Church</b>\n\n📛 ชื่อ: ${form.name}\n✉️ Email: ${form.email}\n⏰ เวลา: ${new Date().toLocaleString('th-TH')}\n\n⚠️ กรุณาเข้าระบบเพื่ออนุมัติสมาชิก`);
       await fbLogout();
       setSuccess('สมัครสมาชิกสำเร็จ! กรุณารอ Admin อนุมัติก่อนเข้าใช้งาน');
       setMode('pending');
@@ -1263,13 +1265,20 @@ const UserManagement = ({ user, showToast }) => {
   const [loading, setLoading] = useState('');
 
   useEffect(() => {
-    if (db) fbListenUsers(setUsers);
-    else setTimeout(() => { if(db) fbListenUsers(setUsers); }, 1500);
+    const tryListen = () => {
+      if (db) {
+        fbListenUsers(setUsers);
+      } else {
+        setTimeout(tryListen, 800);
+      }
+    };
+    tryListen();
   }, []);
 
   const handleApprove = async (uid, name) => {
     setLoading(uid);
     await fbUpdateUserStatus(uid, 'approved');
+    sendTelegram(`✅ <b>อนุมัติสมาชิกแล้ว - Glory Church</b>\n\n📛 ชื่อ: ${name}\n✅ สถานะ: อนุมัติแล้ว สามารถเข้าใช้งานได้`);
     showToast('✅ อนุมัติ ' + name + ' แล้ว');
     setLoading('');
   };
@@ -1382,8 +1391,171 @@ const UserManagement = ({ user, showToast }) => {
   );
 };
 
+// ===================== EXPORT SYSTEM =====================
+const ExportModal = ({ transactions, onClose }) => {
+  const [exportType, setExportType] = useState('excel'); // excel | pdf
+  const [filterYear, setFilterYear] = useState(2026);
+  const [filterMonth, setFilterMonth] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const getFiltered = () => {
+    return transactions.filter(t => {
+      if (t.year !== filterYear) return false;
+      if (filterMonth && t.month !== filterMonth) return false;
+      return true;
+    }).sort((a,b) => a.month - b.month || new Date(a.createdAt) - new Date(b.createdAt));
+  };
+
+  const exportToCSV = () => {
+    setLoading(true);
+    const data = getFiltered();
+    const totalIncome = data.filter(t=>t.type==='income').reduce((a,b)=>a+b.amount,0);
+    const totalExpense = data.filter(t=>t.type==='expense').reduce((a,b)=>a+b.amount,0);
+
+    let csv = '\uFEFF'; // BOM for Thai
+    csv += 'ประเภท,รายละเอียด,แผนก,เดือน,สัปดาห์,จำนวนเงิน,วันที่\n';
+    data.forEach(t => {
+      csv += `${t.type==='income'?'รายรับ':'รายจ่าย'},"${t.desc}","${t.dept}","${MONTHS_TH[t.month-1]} ${t.year}","สัปดาห์ ${t.week}","${t.amount}","${t.createdAt}"\n`;
+    });
+    csv += `\n,,,,รายรับรวม,${totalIncome},\n`;
+    csv += `,,,,รายจ่ายรวม,${totalExpense},\n`;
+    csv += `,,,,คงเหลือ,${totalIncome-totalExpense},\n`;
+
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `glory-church-${filterYear}${filterMonth?'-'+filterMonth:''}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setLoading(false);
+  };
+
+  const exportToPDF = () => {
+    setLoading(true);
+    const data = getFiltered();
+    const totalIncome = data.filter(t=>t.type==='income').reduce((a,b)=>a+b.amount,0);
+    const totalExpense = data.filter(t=>t.type==='expense').reduce((a,b)=>a+b.amount,0);
+    const balance = totalIncome - totalExpense;
+    const periodLabel = filterMonth ? `${MONTHS_TH[filterMonth-1]} ${filterYear}` : `ปี ${filterYear}`;
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+  body{font-family:sans-serif;padding:20px;font-size:13px;color:#1a1a1a;}
+  h1{text-align:center;color:#1565C0;font-size:20px;margin-bottom:4px;}
+  .sub{text-align:center;color:#64748B;margin-bottom:20px;font-size:13px;}
+  .summary{display:flex;gap:12px;margin-bottom:20px;}
+  .sum-box{flex:1;padding:12px;border-radius:8px;text-align:center;}
+  .sum-box.inc{background:#E8F5E9;} .sum-box.exp{background:#FFEBEE;} .sum-box.bal{background:#E3F2FD;}
+  .sum-label{font-size:11px;color:#666;} .sum-val{font-size:16px;font-weight:700;margin-top:4px;}
+  .inc .sum-val{color:#2E7D32;} .exp .sum-val{color:#C62828;} .bal .sum-val{color:#1565C0;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{background:#1565C0;color:white;padding:8px 6px;text-align:left;}
+  td{padding:7px 6px;border-bottom:1px solid #eee;}
+  tr:nth-child(even){background:#F8FAFF;}
+  .inc-row td:first-child{color:#2E7D32;font-weight:600;}
+  .exp-row td:first-child{color:#C62828;font-weight:600;}
+  .footer{margin-top:20px;text-align:center;font-size:11px;color:#999;}
+  @media print{body{padding:10px;}}
+</style></head><body>
+<h1>✟ Glory Church</h1>
+<div class="sub">รายงานการเงิน ${periodLabel} | พิมพ์: ${new Date().toLocaleDateString('th-TH')}</div>
+<div class="summary">
+  <div class="sum-box inc"><div class="sum-label">รายรับรวม</div><div class="sum-val">฿${new Intl.NumberFormat('th-TH').format(totalIncome)}</div></div>
+  <div class="sum-box exp"><div class="sum-label">รายจ่ายรวม</div><div class="sum-val">฿${new Intl.NumberFormat('th-TH').format(totalExpense)}</div></div>
+  <div class="sum-box bal"><div class="sum-label">คงเหลือ</div><div class="sum-val">฿${new Intl.NumberFormat('th-TH').format(balance)}</div></div>
+</div>
+<table>
+  <tr><th>ประเภท</th><th>รายละเอียด</th><th>แผนก</th><th>เดือน</th><th>จำนวนเงิน</th></tr>
+  ${data.map(t=>`<tr class="${t.type==='income'?'inc':'exp'}-row">
+    <td>${t.type==='income'?'💚 รายรับ':'🔴 รายจ่าย'}</td>
+    <td>${t.desc}</td><td>${t.dept}</td>
+    <td>${MONTHS_TH[t.month-1]}</td>
+    <td style="text-align:right;font-weight:600;">${t.type==='income'?'+':'-'}฿${new Intl.NumberFormat('th-TH').format(t.amount)}</td>
+  </tr>`).join('')}
+</table>
+<div class="footer">Glory Church Accounting System | รายการทั้งหมด ${data.length} รายการ</div>
+</body></html>`;
+
+    const w = window.open('','_blank','width=800,height=600');
+    w.document.write(html);
+    w.document.close();
+    w.onload = () => { w.print(); };
+    setLoading(false);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
+      <div className="modal-sheet">
+        <div className="modal-handle"/>
+        <div className="modal-title">📤 ส่งออกรายงาน</div>
+
+        {/* Type selector */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:16}}>
+          {[['excel','📊 Excel/CSV'],['pdf','📄 PDF/Print']].map(([t,label])=>(
+            <button key={t} onClick={()=>setExportType(t)} style={{padding:'11px',border:`2px solid ${exportType===t?'#1565C0':'#E0E7FF'}`,borderRadius:10,background:exportType===t?'rgba(21,101,192,0.08)':'white',color:exportType===t?'#1565C0':'#64748B',fontFamily:'Sarabun',fontWeight:700,cursor:'pointer',fontSize:14}}>{label}</button>
+          ))}
+        </div>
+
+        {/* Year */}
+        <div className="form-group">
+          <label className="form-label">ปี</label>
+          <select className="form-control" value={filterYear} onChange={e=>setFilterYear(parseInt(e.target.value))}>
+            {[2022,2023,2024,2025,2026].map(y=><option key={y} value={y}>ปี {y}</option>)}
+          </select>
+        </div>
+
+        {/* Month */}
+        <div className="form-group">
+          <label className="form-label">เดือน</label>
+          <select className="form-control" value={filterMonth} onChange={e=>setFilterMonth(parseInt(e.target.value))}>
+            <option value={0}>ทุกเดือน</option>
+            {MONTHS_TH.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+          </select>
+        </div>
+
+        {/* Summary preview */}
+        <div style={{background:'#F0F6FF',borderRadius:10,padding:12,marginBottom:16}}>
+          <div style={{fontSize:12,color:'#64748B',marginBottom:6}}>📋 ข้อมูลที่จะส่งออก</div>
+          {(() => {
+            const d = getFiltered();
+            const inc = d.filter(t=>t.type==='income').reduce((a,b)=>a+b.amount,0);
+            const exp = d.filter(t=>t.type==='expense').reduce((a,b)=>a+b.amount,0);
+            return (
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
+                <span>📊 {d.length} รายการ</span>
+                <span style={{color:'#10B981'}}>+{fmtFull(inc)}</span>
+                <span style={{color:'#EF4444'}}>-{fmtFull(exp)}</span>
+              </div>
+            );
+          })()}
+        </div>
+
+        <button className="btn btn-primary" onClick={exportType==='excel'?exportToCSV:exportToPDF} disabled={loading}>
+          {loading ? <span className="loader"/> : exportType==='excel' ? '📊 ดาวน์โหลด CSV/Excel' : '🖨️ พิมพ์ / บันทึก PDF'}
+        </button>
+        <button className="btn btn-outline" style={{marginTop:10}} onClick={onClose}>ยกเลิก</button>
+      </div>
+    </div>
+  );
+};
+
 // ===================== SETTINGS / PROFILE =====================
-const Settings = ({ user, onLogout, showToast }) => (
+const Settings = ({ user, onLogout, showToast }) => {
+  const [showExport, setShowExport] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+
+  useEffect(() => {
+    if (db) {
+      db.ref('transactions').once('value').then(snap => {
+        const data = snap.val();
+        if (data) setTransactions(Object.values(data));
+      });
+    }
+  }, []);
+
+  return (
   <div>
     <div className="card">
       <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:20}}>
@@ -1402,35 +1574,29 @@ const Settings = ({ user, onLogout, showToast }) => (
       <div className="section-title">⚙️ ตั้งค่าระบบ</div>
       <div style={{display:'flex',flexDirection:'column',gap:12}}>
         {[
-          {icon:'🔔',label:'การแจ้งเตือน Telegram',desc:'เชื่อมต่อ Bot แจ้งเตือนอัตโนมัติ'},
-          {icon:'🔥',label:'Firebase Database',desc:'ซิงค์ข้อมูลแบบเรียลไทม์'},
-          {icon:'📤',label:'ส่งออกรายงาน',desc:'Export เป็น PDF หรือ Excel'},
-          {icon:'👥',label:'จัดการผู้ใช้',desc:'เพิ่ม/ลบ ผู้ใช้งาน 12 คน'},
+          {icon:'🔔',label:'การแจ้งเตือน Telegram',desc:'เชื่อมต่อแล้ว ✅',action:null},
+          {icon:'🔥',label:'Firebase Database',desc:'เชื่อมต่อแล้ว ✅',action:null},
+          {icon:'📤',label:'ส่งออกรายงาน',desc:'Export เป็น PDF หรือ Excel',action:()=>setShowExport(true)},
         ].map((item,i)=>(
-          <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'12px',background:'#F8FAFF',borderRadius:10}}>
+          <div key={i} onClick={item.action||undefined} style={{display:'flex',alignItems:'center',gap:12,padding:'12px',background:'#F8FAFF',borderRadius:10,cursor:item.action?'pointer':'default'}}>
             <span style={{fontSize:22}}>{item.icon}</span>
             <div style={{flex:1}}>
               <div style={{fontWeight:600,fontSize:14}}>{item.label}</div>
-              <div style={{fontSize:12,color:'#64748B'}}>{item.desc}</div>
+              <div style={{fontSize:12,color:item.desc.includes('✅')?'#10B981':'#64748B'}}>{item.desc}</div>
             </div>
-            <span style={{color:'#64748B'}}>›</span>
+            {item.action && <span style={{color:'#64748B'}}>›</span>}
           </div>
         ))}
       </div>
     </div>
 
     <div className="card" style={{background:'#FFF8F8'}}>
-      <div className="alert alert-info" style={{marginBottom:16}}>
-        <b>🔧 วิธีเชื่อมต่อ Firebase & Telegram</b><br/>
-        แก้ไขค่าตัวแปรในโค้ดส่วน CONFIG:<br/>
-        • FIREBASE_CONFIG - ใส่ค่าจาก Firebase Console<br/>
-        • TELEGRAM_BOT_TOKEN - Token จาก @BotFather<br/>
-        • TELEGRAM_CHAT_ID - ID กลุ่ม/ช่อง Telegram
-      </div>
       <button className="btn btn-danger" onClick={onLogout}>🚪 ออกจากระบบ</button>
     </div>
+    {showExport && <ExportModal transactions={transactions} onClose={()=>setShowExport(false)} />}
   </div>
-);
+  );
+};
 
 // ===================== MAIN APP =====================
 const App = () => {
