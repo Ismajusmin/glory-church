@@ -1590,6 +1590,7 @@ const Settings = ({ user, onLogout, showToast }) => {
       </div>
     </div>
 
+    {user.role === 'admin' && <UserManagement user={user} showToast={showToast} />}
     <div className="card" style={{background:'#FFF8F8'}}>
       <button className="btn btn-danger" onClick={onLogout}>🚪 ออกจากระบบ</button>
     </div>
